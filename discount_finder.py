@@ -1,3 +1,4 @@
+import argparse
 import logging
 import sys
 
@@ -48,13 +49,23 @@ def find_discount_for_product(scraper: Scraper, product_with_target_price: Produ
     return articles_with_target_price, query
 
 
-def main(scraper_name: str):
-    if scraper_name == HardgamersScraper.SOURCE_KEY:
+def main():
+    parser = argparse.ArgumentParser(description="Find discount for given scraper")
+    parser.add_argument(
+        "--scraper",
+        type=str,
+        default=HardgamersScraper.SOURCE_KEY,
+        help="Scraper name (allowed values: hardgamers, bestgaming)",
+    )
+    args = parser.parse_args()
+    logger.info(f"Args: {args}")
+
+    if args.scraper == HardgamersScraper.SOURCE_KEY:
         scraper = HardgamersScraper()
-    elif scraper_name == BestgamingScraper.SOURCE_KEY:
+    elif args.scraper == BestgamingScraper.SOURCE_KEY:
         scraper = BestgamingScraper()
     else:
-        raise ValueError(f"Invalid scraper name: {scraper_name}")
+        raise ValueError(f"Invalid scraper name: {args.scraper_name}")
 
     product_identifiers_and_target_price = [
         ProductWithTargetPrice(keywords=["274QPF"], target_price=510_000),
@@ -77,5 +88,4 @@ def main(scraper_name: str):
 
 
 if __name__ == "__main__":
-    main(scraper_name=BestgamingScraper.SOURCE_KEY)
-    main(scraper_name=HardgamersScraper.SOURCE_KEY)
+    main()

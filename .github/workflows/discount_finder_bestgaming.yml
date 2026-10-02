@@ -2,8 +2,8 @@ name: Find discounts for products
 
 on:
   schedule:
-    # cada 6 horas, en el minuto 43
-    - cron: '43 */6 * * *'
+    # cada 6 horas, en el minuto 21
+    - cron: '21 */6 * * *'
   workflow_dispatch:
     inputs:
       send_email:
@@ -32,7 +32,7 @@ jobs:
 
       - name: Find discount on target products
         run: |
-          ARGS=""
+          ARGS="--scraper bestgaming"
 
           echo "Ejecutando: uv run python discount_finder.py $ARGS"
           uv run python discount_finder.py $ARGS

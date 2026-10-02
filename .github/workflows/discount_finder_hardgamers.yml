@@ -1,0 +1,38 @@
+name: Find discounts for products
+
+on:
+  schedule:
+    # cada 6 horas, en el minuto 43
+    - cron: '43 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      send_email:
+        description: 'Enviar reporte por email'
+        type: boolean
+        default: false
+
+jobs:
+  find-discounts:
+    name: Find target prices for products
+    runs-on: ubuntu-latest
+    env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Find discount on target products
+        run: |
+          ARGS="--scraper hardgamers"
+
+          echo "Ejecutando: uv run python discount_finder.py $ARGS"
+          uv run python discount_finder.py $ARGS
