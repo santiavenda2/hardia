@@ -1,4 +1,4 @@
-name: Find discounts for products
+name: Find discounts for products in bestgaming
 
 on:
   schedule:
