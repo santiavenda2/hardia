@@ -2,18 +2,162 @@ import json
 import logging
 import re
 import urllib.parse
+from abc import ABC, abstractmethod
+from bs4 import BeautifulSoup, Tag
 from difflib import SequenceMatcher
-from typing import List, Optional
-
-from bs4 import BeautifulSoup, ResultSet, Tag
+from typing import List, Optional, Tuple, Any
 
 from http_client import create_session, safe_get
-from models import PriceHistory, Deal, Article
+from models import Deal, Article, PriceHistory
 
 logger = logging.getLogger(__name__)
 
+# Interface
+class Scraper(ABC):
+    @abstractmethod
+    def fetch_deals_page(self, page: int = 1, limit: int = 54) -> List[Deal]:
+        pass
 
-class HardgamersScraper:
+    @abstractmethod
+    def search(
+        self,
+        search_terms: List[str],
+        min_price: Optional[int] = None,
+        max_price: Optional[int] = None
+    ) -> Tuple[List[Article], str, str]:
+        pass
+
+    @abstractmethod
+    def parse_article(self, raw_article: Any) -> Article:
+        pass
+
+    @abstractmethod
+    def fetch_price_history(self, product_url: str) -> Optional[PriceHistory]:
+        pass
+
+class BestgamingScraper(Scraper):
+
+    SOURCE_KEY = "bestgaming"
+
+    def __init__(self):
+        self._shared_session = create_session()
+
+    def search(
+        self,
+        search_terms: List[str],
+        min_price: Optional[int] = None,
+        max_price: Optional[int] = None
+    ) -> Tuple[List[Article], str, str]:
+        """
+        # page=1&limit=25&sort=price_asc&includeBrands=true&includeStores=true&includeMaxPrice=true&
+        # q=CORSAIR+NAUTILUS+360+RS&
+        :param search_terms:
+        :param min_price:
+        :param max_price:
+        :return: List of Articles, url, search_terms
+        """
+        url = "https://bestgaming.com.ar/api/products"
+
+        params = {
+            # "page": 1,
+            # "limit": 100,
+            "sort": "price_asc",
+            "includeBrands": "true",
+            "q": "+".join(search_terms),
+        }
+
+        # No filtro la busqueda por max_price porque si lo hago y no encuentra resultados con los parametros de busqueda
+        # me devuelve resultados aproximados que cumpĺen con el precio
+
+        logger.debug(f"Searching Bestgaming products: {search_terms}...")
+
+        response = safe_get(url, params=params, timeout=10, shared_session=self._shared_session)
+
+        if not response or response.status_code != 200:
+            raise Exception("Error executing Bestgaming search")
+
+        response_json = json.loads(response.text)
+        articles_json = response_json["products"]
+        if max_price is None:
+            articles = [self.parse_article(article_json) for article_json in articles_json]
+        else:
+            articles = []
+            for article_json in articles_json:
+                article = self.parse_article(article_json)
+                # Solo tomo en cuenta articulos que contengan todas las palabras buscadas
+                if all(search_term in article.title for search_term in search_terms):
+                    if article.current_price <= max_price:
+                        articles.append(article)
+                    else:
+                        # La lista esta ordenada por precio
+                        break
+
+        return articles, response.url, " ".join(search_terms)
+
+    def parse_article(self, raw_article: dict[str, Any]) -> Article:
+        """
+        Recibe un producto de bestgaming como un diccionario, ejemplo:
+            {
+                'avgPrice': 136655.81,
+                'brand': 'CORSAIR',
+                'currency': 'ARS',
+                'currentPrice': 136901,
+                'ftsRank': 0,
+                'highestPrice': 183913,
+                'id': 204954,
+                'imageUrl': None,
+                'isOutlet': False,
+                'lowestPrice': 133084,
+                'name': 'Modulo CORSAIR RS LCD Nautilus White',
+                'originalPrice': None,
+                'previousPrice': 135915,
+                'priceDropPercent': 0.0021913166,
+                'sku': 'AGF11',
+                'slug': 'modulo-corsair-rs-lcd-nautilus-white',
+                'specs': None,
+                'store': {
+                    'addresses': [],
+                    'baseUrl': 'https://silverhard.com',
+                    'createdAt': '2026-05-24T03:00:01.992Z',
+                    'description': 'Tienda gamer online. Venta de hardware, notebooks, periféricos, sillas gaming y monitores. Envíos a todo el país con Andreani.',
+                    'id': 40,
+                    'isActive': True,
+                    'logoUrl': '/api/cdn/tiendas/silverHard.png',
+                    'name': 'SilverHard',
+                    'phones': [],
+                    'provinces': ['buenos-aires'],
+                    'schedule': [],
+                    'slug': 'silverHard',
+                    'updatedAt': '2026-10-01T22:30:00.135Z'
+                },
+                'storeId': 40,
+                'url': 'https://silverhard.com/producto/modulo-corsair-rs-lcd-nautilus-white/'
+            }
+        :param raw_article: Bestgaming product in json format
+        :return: un article
+        """
+        article = Article(
+            title=raw_article["name"].upper(),
+            store=raw_article["store"]["name"],
+            current_price=raw_article["currentPrice"],
+            previous_price=raw_article["previousPrice"],
+            discount_percent=raw_article["priceDropPercent"],
+            product_link=raw_article["url"],
+            image_url="",
+            source=self.SOURCE_KEY,
+        )
+        return article
+
+    def fetch_deals_page(self, page: int = 1, limit: int = 54) -> List[Deal]:
+        pass
+
+    def fetch_price_history(self, product_url: str) -> Optional[PriceHistory]:
+        pass
+
+
+
+
+class HardgamersScraper(Scraper):
     SOURCE_KEY = "hardgamers"
 
     def __init__(self):
@@ -86,9 +230,9 @@ class HardgamersScraper:
 
         return competitors
 
-    def search(self, search_terms: list[str], min_price: Optional[int] = None, max_price: Optional[int] = None) -> tuple[ResultSet[Tag], str, str]:
-        search_terms = ' '.join(search_terms)
-        url = f"https://www.hardgamers.com.ar/search?text={urllib.parse.quote(search_terms)}"
+    def search(self, search_terms: list[str], min_price: Optional[int] = None, max_price: Optional[int] = None) -> tuple[list[Article], str, str]:
+        search_terms_str = ' '.join(search_terms)
+        url = f"https://www.hardgamers.com.ar/search?text={urllib.parse.quote(search_terms_str)}"
         if min_price:
             url += f"&minPrice={min_price}"
         if max_price:
@@ -100,8 +244,17 @@ class HardgamersScraper:
 
         soup = BeautifulSoup(response.text, 'html.parser')
         self.remove_offers_div(soup)
-        articles = soup.find_all("article", class_="One-Bit-Product")
-        return articles, url, search_terms
+        product_articles = soup.find_all("article", class_="One-Bit-Product")
+
+        articles: list[Article] = []
+        for article_html in product_articles:
+            try:
+                article = self.parse_article(article_html)
+                articles.append(article)
+            except Exception:
+                continue
+
+        return articles, url, search_terms_str
 
     def remove_offers_div(self, soup: BeautifulSoup):
         # Remove offers div
@@ -211,33 +364,33 @@ class HardgamersScraper:
         logger.info(f"Successfully scraped a total of {len(all_deals)} deals across {page - 1} pages.")
         return all_deals
 
-    def parse_article(self, article_html: Tag) -> Article:
-        name_el = article_html.find("p", class_="product-name")
-        title = name_el.get_text(strip=True) if name_el else "Unknown Product"
+    def parse_article(self, raw_article: Tag) -> Article:
+        name_el = raw_article.find("p", class_="product-name")
+        title = name_el.get_text(strip=True).upper() if name_el else "UNKNOWN PRODUCT"
 
-        store_el = article_html.find("p", class_="store")
+        store_el = raw_article.find("p", class_="store")
         store = store_el.get_text(strip=True) if store_el else "Unknown Store"
 
-        price_span = article_html.select_one("p.product-price span[itemprop='price']")
+        price_span = raw_article.select_one("p.product-price span[itemprop='price']")
         raw_current_price = price_span.get_text(strip=True) if price_span else None
         if not raw_current_price and price_span:
             raw_current_price = price_span.get("content")
         current_price = parse_price(raw_current_price) or 0.0
 
-        prev_price_el = article_html.find("p", class_="previous-price")
+        prev_price_el = raw_article.find("p", class_="previous-price")
         previous_price = parse_price(prev_price_el.get_text(strip=True)) if prev_price_el else None
 
-        offer_el = article_html.find("div", class_="offer")
+        offer_el = raw_article.find("div", class_="offer")
         discount_percent = parse_discount(offer_el.get_text(strip=True)) if offer_el else None
 
-        img_container = article_html.find("a", class_="img-container")
+        img_container = raw_article.find("a", class_="img-container")
         href = img_container.get("href") if img_container else ""
         product_link = f"https://www.hardgamers.com.ar{href}" if href.startswith("/") else href
 
         img_el = img_container.find("img", class_="img") if img_container else None
         image_url = img_el.get("src") if img_el else None
 
-        article_html = Article(
+        article = Article(
             title=title,
             store=store,
             current_price=current_price,
@@ -247,14 +400,12 @@ class HardgamersScraper:
             image_url=image_url,
             source=self.SOURCE_KEY,
         )
-        return article_html
+        return article
 
-    def find_competitors_on_similar_articles(self, articles: ResultSet[Tag], deal: Deal, deal_tokens_set: set[str]) -> list[
-        Article]:
+    def find_competitors_on_similar_articles(self, articles: list[Article], deal: Deal, deal_tokens_set: set[str]) -> list[Article]:
         competitors = []
-        for art in articles:
+        for article in articles:
             try:
-                article = self.parse_article(art)
                 if not article.title or not article.store or not article.current_price:
                     continue
 
@@ -322,6 +473,13 @@ def extract_product_type_and_model(deal_title: str) -> tuple[str, list[str]]:
     return product_type, product_model
 
 
+def main():
+    bestgaming_scraper = BestgamingScraper()
+    articles, url, search_terms = bestgaming_scraper.search(search_terms=["CORSAIR", "NAUTILUS"])
+    print(articles)
+    # product_type, product_model = extract_product_type_and_model("ADAPTADOR TIPO C A PLUG 3.5 (H) OFF-ADA002 OFFICE")
+    # print(product_type, product_model)
+
+
 if __name__ == "__main__":
-    product_type, product_model = extract_product_type_and_model("ADAPTADOR TIPO C A PLUG 3.5 (H) OFF-ADA002 OFFICE")
-    print(product_type, product_model)
+    main()

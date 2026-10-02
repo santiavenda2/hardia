@@ -1,7 +1,7 @@
 import logging
 import time
 from typing import List, Optional, Tuple
-from hardgamers_scraper import HardgamersScraper
+from scrapers import HardgamersScraper
 from models import Deal, RejectedDeal, Article
 
 logger = logging.getLogger(__name__)

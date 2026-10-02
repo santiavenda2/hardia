@@ -5,7 +5,7 @@ from datetime import datetime
 from io import TextIOWrapper
 
 import config
-from hardgamers_scraper import HardgamersScraper
+from scrapers import HardgamersScraper
 from models import Deal, RejectedDeal
 from analyzer import filter_deals, sort_deals
 from notifier import send_email_alert

@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import urllib.parse
-from hardgamers_scraper import parse_discount
+from scrapers import parse_discount
 from models import Deal
 
 
