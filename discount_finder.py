@@ -2,7 +2,9 @@ import argparse
 import logging
 import sys
 
+import config
 from models import Article, ProductWithTargetPrice
+from notifier import send_target_discounts_email
 from scrapers import HardgamersScraper, BestgamingScraper, Scraper
 
 logging.basicConfig(
@@ -17,7 +19,8 @@ def find_discount_for_multiple_products(scraper: Scraper, product_identifiers_an
     for product_with_target_price in product_identifiers_and_target_price:
         articles_with_target_price, query = find_discount_for_product(scraper=scraper, product_with_target_price=product_with_target_price)
         if articles_with_target_price:
-            products_with_target_price_by_product_identifier[query] = articles_with_target_price
+            key = f"{query} (Objetivo: ${product_with_target_price.target_price:,.0f})"
+            products_with_target_price_by_product_identifier[key] = articles_with_target_price
 
     return products_with_target_price_by_product_identifier
 
@@ -57,6 +60,11 @@ def main():
         default=HardgamersScraper.SOURCE_KEY,
         help="Scraper name (allowed values: hardgamers, bestgaming)",
     )
+    parser.add_argument(
+        "--no-email",
+        action="store_true",
+        help="Skip sending email notifications (dry run)",
+    )
     args = parser.parse_args()
     logger.info(f"Args: {args}")
 
@@ -65,7 +73,7 @@ def main():
     elif args.scraper == BestgamingScraper.SOURCE_KEY:
         scraper = BestgamingScraper()
     else:
-        raise ValueError(f"Invalid scraper name: {args.scraper_name}")
+        raise ValueError(f"Invalid scraper name: {args.scraper}")
 
     product_identifiers_and_target_price = [
         ProductWithTargetPrice(keywords=["274QPF"], target_price=510_000),
@@ -85,6 +93,25 @@ def main():
         for article in article_list:
             print(article)
     print("\n")
+
+    # Send notification email if discounts were found
+    if products_with_target_price_by_product_identifier:
+        if args.no_email:
+            logger.info("Modo dry-run activado (--no-email). Envío de email omitido.")
+        elif not config.is_email_configured():
+            logger.info("Configuración de email no proporcionada o incompleta. Envío de email omitido.")
+        else:
+            logger.info("Enviando reporte de ofertas por email...")
+            success = send_target_discounts_email(
+                products_with_target_price_by_product_identifier,
+                scraper_name=args.scraper
+            )
+            if success:
+                logger.info("Notificación enviada exitosamente.")
+            else:
+                logger.error("No se pudo enviar la notificación por correo.")
+    else:
+        logger.info("No se encontraron ofertas que cumplan con el precio objetivo.")
 
 
 if __name__ == "__main__":

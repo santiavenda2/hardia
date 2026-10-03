@@ -3,7 +3,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import logging
 from typing import List, Optional
-from models import Deal, RejectedDeal
+from models import Deal, RejectedDeal, Article
 import config
 
 logger = logging.getLogger(__name__)
@@ -129,6 +129,8 @@ def generate_html_email(deals: List[Deal], rejected_deals: Optional[List[Rejecte
             </table>
         </div>
         """
+
+    content_list_html = deals_html if deals else "<p style='text-align: center; color: #6c757d;'>No se encontraron ofertas que superen los filtros seleccionados.</p>"
 
     html_content = f"""
     <!DOCTYPE html>
@@ -311,7 +313,7 @@ def generate_html_email(deals: List[Deal], rejected_deals: Optional[List[Rejecte
                 <p style="margin: 5px 0 0 0; color: #6c757d; font-size: 14px;">Reporte diario de ofertas con validación de precios frente a la competencia e historial de 30 días.</p>
             </div>
             <div class="deals-list">
-                {deals_html if deals else "<p style='text-align: center; color: #6c757d;'>No se encontraron ofertas que superen los filtros seleccionados.</p>"}
+                {content_list_html}
             </div>
             {rejected_html}
             <div class="footer">
@@ -337,11 +339,17 @@ def send_email_with_deals(deals: List[Deal], rejected_deals: Optional[List[Rejec
     subject = f"🔥 HardGamers Alert: {deals_count_str}!"
     html_body = generate_html_email(deals, rejected_deals=rejected_deals)
 
-    email_successfully_sent = send_email(html_body, subject)
-    return email_successfully_sent
+    return send_email(html_body, subject)
 
+# Alias for backwards compatibility
+send_email_alert = send_email_with_deals
 
 def send_email(html_body: str, subject: str) -> bool:
+    """Send an HTML email via SMTP based on current config."""
+    if not config.is_email_configured():
+        logger.info("Configuración SMTP no provista o incompleta. Envío de email omitido.")
+        return True
+
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = config.EMAIL_FROM or config.SMTP_USER
@@ -362,3 +370,184 @@ def send_email(html_body: str, subject: str) -> bool:
     except Exception as e:
         logger.error(f"Failed to send email alert: {e}")
         return False
+
+def generate_target_discounts_html(products_by_query: dict[str, list[Article]], scraper_name: str = "Hardia") -> str:
+    """Generate clean HTML email for target price matches."""
+    sections_html = ""
+    for query, articles in products_by_query.items():
+        if not articles:
+            continue
+        articles_html = ""
+        for article in articles:
+            prev_price_html = f"<span class='old-price'>${article.previous_price:,.2f}</span>" if article.previous_price else ""
+            discount_badge = f"<span class='badge'>{article.discount_percent}% OFF</span>" if article.discount_percent else ""
+            image_html = f"<img src='{article.image_url}' alt='{article.title}' class='deal-img'>" if article.image_url else ""
+
+            articles_html += f"""
+            <div class="deal-card">
+                {image_html}
+                <div class="deal-content">
+                    <p class="store-name">{article.store}</p>
+                    <h3 class="deal-title"><a href="{article.product_link}" target="_blank">{article.title}</a></h3>
+                    <div class="price-container">
+                        <span class="current-price">${article.current_price:,.2f}</span>
+                        {prev_price_html}
+                        {discount_badge}
+                    </div>
+                </div>
+            </div>
+            """
+
+        sections_html += f"""
+        <div class="target-section">
+            <h2 class="target-title">🎯 {query}</h2>
+            {articles_html}
+        </div>
+        """
+
+    content_list_html = sections_html if sections_html else "<p style='text-align: center; color: #6c757d;'>No se encontraron ofertas por debajo del precio objetivo.</p>"
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                background-color: #f4f4f7;
+                color: #333333;
+                margin: 0;
+                padding: 0;
+            }}
+            .email-wrapper {{
+                max-width: 680px;
+                margin: 0 auto;
+                background-color: #ffffff;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            }}
+            .header {{
+                text-align: center;
+                border-bottom: 2px solid #eaeaea;
+                padding-bottom: 15px;
+                margin-bottom: 20px;
+            }}
+            .header h1 {{
+                color: #2c3e50;
+                font-size: 24px;
+                margin: 0;
+            }}
+            .target-section {{
+                margin-bottom: 25px;
+            }}
+            .target-title {{
+                font-size: 16px;
+                color: #2c3e50;
+                border-bottom: 1px solid #e1e4e8;
+                padding-bottom: 6px;
+                margin-bottom: 12px;
+            }}
+            .deal-card {{
+                display: flex;
+                flex-direction: row;
+                border: 1px solid #e1e4e8;
+                border-radius: 6px;
+                margin-bottom: 12px;
+                padding: 12px;
+                background-color: #fff;
+                align-items: flex-start;
+            }}
+            .deal-img {{
+                width: 70px;
+                height: 70px;
+                object-fit: contain;
+                margin-right: 15px;
+                border-radius: 4px;
+                border: 1px solid #eee;
+            }}
+            .deal-content {{
+                flex: 1;
+            }}
+            .store-name {{
+                font-size: 12px;
+                text-transform: uppercase;
+                color: #6c757d;
+                margin: 0 0 4px 0;
+                font-weight: 600;
+            }}
+            .deal-title {{
+                font-size: 14px;
+                margin: 0 0 8px 0;
+                line-height: 1.4;
+            }}
+            .deal-title a {{
+                color: #0366d6;
+                text-decoration: none;
+            }}
+            .deal-title a:hover {{
+                text-decoration: underline;
+            }}
+            .price-container {{
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }}
+            .current-price {{
+                font-size: 16px;
+                font-weight: bold;
+                color: #28a745;
+            }}
+            .old-price {{
+                font-size: 13px;
+                text-decoration: line-through;
+                color: #6c757d;
+            }}
+            .badge {{
+                background-color: #dc3545;
+                color: white;
+                font-size: 11px;
+                font-weight: bold;
+                padding: 2px 6px;
+                border-radius: 4px;
+            }}
+            .footer {{
+                text-align: center;
+                font-size: 12px;
+                color: #8c959f;
+                margin-top: 30px;
+                border-top: 1px solid #eaeaea;
+                padding-top: 15px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="email-wrapper">
+            <div class="header">
+                <h1>🎯 {scraper_name} - Alerta de Precios Objetivo</h1>
+                <p style="margin: 5px 0 0 0; color: #6c757d; font-size: 14px;">Se detectaron productos con precios iguales o inferiores a tu objetivo.</p>
+            </div>
+            <div class="deals-list">
+                {content_list_html}
+            </div>
+            <div class="footer">
+                <p>Automated Hardia Deal Alert Agent. Happy Gaming!</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return html_content
+
+def send_target_discounts_email(products_by_query: dict[str, list[Article]], scraper_name: str = "") -> bool:
+    """Send an email alert when target price discounts are found."""
+    if not products_by_query:
+        logger.info("No target discounts found to send via email.")
+        return True
+
+    total_articles = sum(len(articles) for articles in products_by_query.values())
+    scraper_label = scraper_name.capitalize() if scraper_name else "Hardia"
+    subject = f"🎯 {scraper_label} Alert: ¡{total_articles} producto(s) en precio objetivo!"
+    html_body = generate_target_discounts_html(products_by_query, scraper_name=scraper_label)
+    return send_email(html_body, subject)
