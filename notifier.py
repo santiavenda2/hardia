@@ -323,7 +323,7 @@ def generate_html_email(deals: List[Deal], rejected_deals: Optional[List[Rejecte
     """
     return html_content
 
-def send_email_alert(deals: List[Deal], rejected_deals: Optional[List[RejectedDeal]] = None) -> bool:
+def send_email_with_deals(deals: List[Deal], rejected_deals: Optional[List[RejectedDeal]] = None) -> bool:
     """Send the email alert with the given deals and rejected items via SMTP."""
     if not deals and not rejected_deals:
         logger.info("No deals or rejected items to send via email.")
@@ -337,6 +337,11 @@ def send_email_alert(deals: List[Deal], rejected_deals: Optional[List[RejectedDe
     subject = f"🔥 HardGamers Alert: {deals_count_str}!"
     html_body = generate_html_email(deals, rejected_deals=rejected_deals)
 
+    email_successfully_sent = send_email(html_body, subject)
+    return email_successfully_sent
+
+
+def send_email(html_body: str, subject: str) -> bool:
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = config.EMAIL_FROM or config.SMTP_USER

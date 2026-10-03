@@ -8,7 +8,7 @@ import config
 from scrapers import HardgamersScraper
 from models import Deal, RejectedDeal
 from analyzer import filter_deals, sort_deals
-from notifier import send_email_alert
+from notifier import send_email_with_deals
 
 logging.basicConfig(
     level=logging.INFO,
@@ -110,7 +110,7 @@ def main():
         logger.info("Configuración de email no proporcionada o incompleta. Envío de email omitido.")
     else:
         logger.info("Enviando reporte por email...")
-        success = send_email_alert(filtered_deals, rejected_deals=rejected_deals)
+        success = send_email_with_deals(filtered_deals, rejected_deals=rejected_deals)
         if success:
             logger.info("Notificación enviada exitosamente.")
         else:

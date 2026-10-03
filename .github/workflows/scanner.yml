@@ -21,7 +21,7 @@ on:
       send_email:
         description: 'Enviar reporte por email'
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: read
