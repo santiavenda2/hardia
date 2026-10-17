@@ -14,6 +14,11 @@ logger = logging.getLogger(__name__)
 
 # Interface
 class Scraper(ABC):
+
+    @abstractmethod
+    def fetch_all_deals(self, max_pages: int = 10, min_discount: Optional[int] = None) -> List[Deal]:
+        pass
+
     @abstractmethod
     def fetch_deals_page(self, page: int = 1, limit: int = 54) -> List[Deal]:
         pass
@@ -148,8 +153,83 @@ class BestgamingScraper(Scraper):
         )
         return article
 
-    def fetch_deals_page(self, page: int = 1, limit: int = 54) -> List[Deal]:
-        pass
+    def fetch_all_deals(self, max_pages: int = 10, min_discount: Optional[int] = None) -> List[Deal]:
+        """
+        Iterate through pagination pages. Since HardGamers deals are sorted by discount descending,
+        scrapes deals page by page until no more deals are found, max_pages is reached,
+        or deals fall below min_discount (early stopping optimization).
+        """
+        logger.info(f"Fetching all Bestgaming deals (max pages: {max_pages})")
+        all_deals: List[Deal] = []
+        page = 1
+        stop_early = False
+
+        while page <= max_pages and not stop_early:
+            deals = self.fetch_deals_page(page=page)
+            if not deals:
+                logger.info(f"No deals found on page {page}. Stopping pagination.")
+                break
+
+            for deal in deals:
+                if min_discount is not None and deal.discount_percent is not None and deal.discount_percent < min_discount:
+                    logger.info(
+                        f"Alcanzado producto '{deal.title[:35]}' con descuento ({deal.discount_percent}% OFF) "
+                        f"inferior al mínimo buscado ({min_discount}% OFF). "
+                        f"Deteniendo paginación de forma anticipada en página {page}."
+                    )
+                    stop_early = True
+                    break
+                all_deals.append(deal)
+
+            page += 1
+
+        logger.info(f"Successfully scraped a total of {len(all_deals)} deals across {page - 1} pages.")
+        return all_deals
+
+    def fetch_deals_page(self, page: int = 1, limit: int = 50) -> List[Deal]:
+        """Fetch and parse deals from a given page number of Bestgaming deals.
+        https://bestgaming.com.ar/api/products?page=1&limit=30&sort=price_drop&minDiscount=1&maxTotal=200
+        """
+        url = "https://bestgaming.com.ar/api/products"
+        params = {
+            "page": page,
+            "limit": limit,
+            "sort": "price_drop",
+            "minDiscount": 1,
+            "maxTotal": 200,
+            "includeStores": True,
+        }
+
+        logger.info(f"Fetching Bestgaming deals page {page} with limit {limit}...")
+        response = safe_get(url, params=params, timeout=10, shared_session=self._shared_session)
+        if not response or response.status_code != 200:
+            logger.error(f"Failed to retrieve deals for page {page}.")
+            return []
+
+        response_json = response.json()
+
+        product_articles = response_json["products"]
+
+        deals: List[Deal] = []
+        for product_article_json in product_articles:
+            try:
+                article = self.parse_article(product_article_json)
+
+                deal = Deal(
+                    title=article.title,
+                    store=article.store,
+                    current_price=article.current_price,
+                    previous_price=article.previous_price,
+                    discount_percent=article.discount_percent,
+                    product_link=article.product_link,
+                    image_url=article.image_url,
+                    source=self.SOURCE_KEY,
+                )
+                deals.append(deal)
+            except Exception:
+                continue
+
+        return deals
 
     def fetch_price_history(self, product_url: str) -> Optional[PriceHistory]:
         pass
@@ -475,10 +555,12 @@ def extract_product_type_and_model(deal_title: str) -> tuple[str, list[str]]:
 
 def main():
     bestgaming_scraper = BestgamingScraper()
-    articles, url, search_terms = bestgaming_scraper.search(search_terms=["CORSAIR", "NAUTILUS"])
-    print(articles)
+    # articles, url, search_terms = bestgaming_scraper.search(search_terms=["CORSAIR", "NAUTILUS"])
+    # print(articles)
     # product_type, product_model = extract_product_type_and_model("ADAPTADOR TIPO C A PLUG 3.5 (H) OFF-ADA002 OFFICE")
     # print(product_type, product_model)
+    deals = bestgaming_scraper.fetch_all_deals()
+    print(deals)
 
 
 if __name__ == "__main__":

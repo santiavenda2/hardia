@@ -5,7 +5,7 @@ from datetime import datetime
 from io import TextIOWrapper
 
 import config
-from scrapers import HardgamersScraper
+from scrapers import HardgamersScraper, BestgamingScraper
 from models import Deal, RejectedDeal
 from analyzer import filter_deals, sort_deals
 from notifier import send_email_with_deals
@@ -19,6 +19,12 @@ logger = logging.getLogger(__name__)
 
 def main():
     parser = argparse.ArgumentParser(description="HardGamers Deals Scraper, Market & History Validator Agent")
+    parser.add_argument(
+        "--scraper",
+        type=str,
+        default=HardgamersScraper.SOURCE_KEY,
+        help="Scraper name (allowed values: hardgamers, bestgaming)",
+    )
     parser.add_argument(
         "--max-pages", 
         type=int, 
@@ -74,12 +80,19 @@ def main():
 
     logger.info(f"Args: {args}")
 
-    logger.info("Iniciando recolección, validación de mercado e historial de precios de HardGamers...")
 
-    hardgamers_parser = HardgamersScraper()
+    if args.scraper == HardgamersScraper.SOURCE_KEY:
+        scraper = HardgamersScraper()
+    elif args.scraper == BestgamingScraper.SOURCE_KEY:
+        scraper = BestgamingScraper()
+    else:
+        raise ValueError(f"Invalid scraper name: {args.scraper}")
+
+    logger.info(f"Iniciando recolección, validación de mercado e historial de precios de {scraper.SOURCE_KEY}...")
+
     start_time = datetime.now()
     # 1. Scrape deals with early-exit optimization based on sorted discounts
-    all_deals = hardgamers_parser.fetch_all_deals(max_pages=args.max_pages, min_discount=args.min_discount)
+    all_deals = scraper.fetch_all_deals(max_pages=args.max_pages, min_discount=args.min_discount)
     if not all_deals:
         logger.info("No se pudieron obtener ofertas. Finalizando.")
         return
