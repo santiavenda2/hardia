@@ -3,7 +3,7 @@ name: Bestgaming Deals Scanner
 on:
   schedule:
     # Prueba temporal: se ejecutará a las 07:50 UTC
-    - cron: '50 8 * * *'
+    - cron: '47 7 * * *'
   workflow_dispatch:
     inputs:
       min_discount:
@@ -58,7 +58,7 @@ jobs:
           REQUEST_DELAY_SECONDS: "1.5"
           MIN_COMPETITOR_DISCOUNT_PERCENT: "10.0"
         run: |
-          ARGS="--scraper bestgaming --output-file bestgaming_today_deals.txt"
+          ARGS="--scraper bestgaming --output-file today_deals.txt"
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             if [ "${{ inputs.send_email }}" = "false" ]; then
@@ -97,7 +97,7 @@ jobs:
           fi
 
           # Generamos un index.html con un estilo limpio de Markdown
-          cat << 'EOF' > public/index.html
+          cat << 'EOF' > public/bestgaming-index.html
           <!DOCTYPE html>
           <html lang="es">
           <head>
@@ -136,12 +136,12 @@ jobs:
           python3 -c "
           import sys
           import os
-          with open('public/index.html', 'r') as f:
+          with open('public/bestgaming-index.html', 'r') as f:
               html = f.read()
           with open('index.md' if os.path.exists('index.md') else 'today_deals.txt', 'r') as f:
               md = f.read()
           html = html.replace('CONTENT_PLACEHOLDER', md)
-          with open('public/index.html', 'w') as f:
+          with open('public/bestgaming-index.html', 'w') as f:
               f.write(html)
           "
 
