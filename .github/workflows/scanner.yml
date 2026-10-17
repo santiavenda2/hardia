@@ -76,7 +76,7 @@ jobs:
           fi
 
           echo "Ejecutando: uv run python deals_finder.py $ARGS"
-          uv run python deals_finder.py $ARGS
+          uv run python deals_finder.py $ARGS --exclude genesis,lovingcool,shobo
 
       - name: Subir el archivo de deals actuales
         uses: actions/upload-artifact@v7
