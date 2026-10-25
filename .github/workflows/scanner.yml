@@ -58,7 +58,7 @@ jobs:
           REQUEST_DELAY_SECONDS: "1.5"
           MIN_COMPETITOR_DISCOUNT_PERCENT: "10.0"
         run: |
-          ARGS="--scraper hardgamers --output-file hardgamers_today_deals.txt"
+          ARGS="--scraper hardgamers --output-file today_deals.txt"
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             if [ "${{ inputs.send_email }}" = "false" ]; then
