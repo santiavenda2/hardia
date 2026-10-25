@@ -8,7 +8,7 @@ import config
 
 logger = logging.getLogger(__name__)
 
-def generate_html_email(deals: List[Deal], rejected_deals: Optional[List[RejectedDeal]] = None) -> str:
+def generate_html_email(source: str, deals: List[Deal], rejected_deals: Optional[List[RejectedDeal]] = None) -> str:
     """Generate a clean, responsive HTML email body with the list of deals, market comparison, 30-day history & rejected items."""
     deals_html = ""
     for deal in deals:
@@ -18,7 +18,7 @@ def generate_html_email(deals: List[Deal], rejected_deals: Optional[List[Rejecte
         
         search_link_html = ""
         if deal.competitor_search_url:
-            search_link_html = f"<div style='font-size: 11px; color: #6c757d; margin-bottom: 4px;'>🔍 <a href='{deal.competitor_search_url}' target='_blank' style='color: #0366d6; text-decoration: underline;'>Endpoint Búsqueda HardGamers</a> (<em>'{deal.search_keywords}'</em>)</div>"
+            search_link_html = f"<div style='font-size: 11px; color: #6c757d; margin-bottom: 4px;'>🔍 <a href='{deal.competitor_search_url}' target='_blank' style='color: #0366d6; text-decoration: underline;'>Endpoint Búsqueda {source}</a> (<em>'{deal.search_keywords}'</em>)</div>"
 
         # Competitor validation block
         if deal.similar_found and deal.competitors:
@@ -309,7 +309,7 @@ def generate_html_email(deals: List[Deal], rejected_deals: Optional[List[Rejecte
     <body>
         <div class="email-wrapper">
             <div class="header">
-                <h1>🔥 HardGamers Top Deals & Price Check</h1>
+                <h1>🔥 {source} Top Deals & Price Check</h1>
                 <p style="margin: 5px 0 0 0; color: #6c757d; font-size: 14px;">Reporte diario de ofertas con validación de precios frente a la competencia e historial de 30 días.</p>
             </div>
             <div class="deals-list">
@@ -317,7 +317,7 @@ def generate_html_email(deals: List[Deal], rejected_deals: Optional[List[Rejecte
             </div>
             {rejected_html}
             <div class="footer">
-                <p>Automated HardGamers Deal Alert Agent. Happy Gaming!</p>
+                <p>Automated {source} Deal Alert Agent. Happy Gaming!</p>
             </div>
         </div>
     </body>
@@ -325,7 +325,7 @@ def generate_html_email(deals: List[Deal], rejected_deals: Optional[List[Rejecte
     """
     return html_content
 
-def send_email_with_deals(deals: List[Deal], rejected_deals: Optional[List[RejectedDeal]] = None) -> bool:
+def send_email_with_deals(source: str, deals: List[Deal], rejected_deals: Optional[List[RejectedDeal]] = None) -> bool:
     """Send the email alert with the given deals and rejected items via SMTP."""
     if not deals and not rejected_deals:
         logger.info("No deals or rejected items to send via email.")
@@ -336,13 +336,11 @@ def send_email_with_deals(deals: List[Deal], rejected_deals: Optional[List[Rejec
         return True
 
     deals_count_str = f"{len(deals)} Ofertas Verificadas" if deals else "Reporte de Análisis"
-    subject = f"🔥 HardGamers Alert: {deals_count_str}!"
-    html_body = generate_html_email(deals, rejected_deals=rejected_deals)
+    subject = f"🔥 {source} Alert: {deals_count_str}!"
+    html_body = generate_html_email(source, deals, rejected_deals=rejected_deals)
 
     return send_email(html_body, subject)
 
-# Alias for backwards compatibility
-send_email_alert = send_email_with_deals
 
 def send_email(html_body: str, subject: str) -> bool:
     """Send an HTML email via SMTP based on current config."""

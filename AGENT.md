@@ -68,7 +68,7 @@ flowchart TD
     E & F --> G["analyzer.sort_deals()"]
     G & R --> H["Salida Consola (Resumen de Aceptados + Listado de Rechazados)"]
     G & R --> I{"--no-email activado?"}
-    I -- No --> J["notifier.send_email_alert() (HTML con Ofertas y Tabla de Rechazados)"]
+    I -- No --> J["notifier.send_email_with_deals() (HTML con Ofertas y Tabla de Rechazados)"]
     I -- Sí --> K["Fin del proceso (Dry-run)"]
 ```
 

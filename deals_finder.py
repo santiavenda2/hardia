@@ -123,7 +123,7 @@ def main():
         logger.info("Configuración de email no proporcionada o incompleta. Envío de email omitido.")
     else:
         logger.info("Enviando reporte por email...")
-        success = send_email_with_deals(filtered_deals, rejected_deals=rejected_deals)
+        success = send_email_with_deals(source=scraper.SOURCE_KEY, deals=filtered_deals, rejected_deals=rejected_deals)
         if success:
             logger.info("Notificación enviada exitosamente.")
         else:
