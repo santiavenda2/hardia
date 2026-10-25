@@ -274,6 +274,7 @@ class HardgamersScraper(Scraper):
                     previous_price=article.previous_price,
                     discount_percent=article.discount_percent,
                     product_link=article.product_link,
+                    source_url=article.source_url,
                     image_url=article.image_url,
                     source=self.SOURCE_KEY,
                 )
