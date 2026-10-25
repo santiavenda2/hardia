@@ -20,6 +20,7 @@ class Article:
     previous_price: Optional[float]
     discount_percent: Optional[int]
     product_link: str
+    source_url: str
     image_url: Optional[str]
     source: str
 

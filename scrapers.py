@@ -141,6 +141,7 @@ class BestgamingScraper(Scraper):
         :param raw_article: Bestgaming product in json format
         :return: un article
         """
+        source_url = f"https://bestgaming.com.ar/producto/{raw_article["store"]["slug"]}/{raw_article["slug"]}"
         article = Article(
             title=raw_article["name"].upper(),
             store=raw_article["store"]["name"],
@@ -148,6 +149,7 @@ class BestgamingScraper(Scraper):
             previous_price=raw_article["previousPrice"],
             discount_percent=raw_article["priceDropPercent"],
             product_link=raw_article["url"],
+            source_url=source_url,
             image_url="",
             source=self.SOURCE_KEY,
         )
@@ -221,6 +223,7 @@ class BestgamingScraper(Scraper):
                     current_price=article.current_price,
                     previous_price=article.previous_price,
                     discount_percent=article.discount_percent,
+                    source_url=article.source_url,
                     product_link=article.product_link,
                     image_url=article.image_url,
                     source=self.SOURCE_KEY,
@@ -286,6 +289,7 @@ class HardgamersScraper(Scraper):
         Since search results are sorted by price ascending (cheapest first),
         the first valid competitor matching similarity criteria is the cheapest competitor.
         """
+        logger.info(f"Searching competitors for deal: {deal.title}...")
         product_type, product_model_tokens = extract_product_type_and_model(deal.title.upper())
         if not product_model_tokens:
             deal.search_keywords = ""
@@ -445,6 +449,44 @@ class HardgamersScraper(Scraper):
         return all_deals
 
     def parse_article(self, raw_article: Tag) -> Article:
+        """
+        <article itemscope="" itemtype="http://schema.org/Product" class="One-Bit-Product">
+            <div class="product-image-wrapper">
+                <div class="fav-and-offer-container">
+                    <div class="offer">35% OFF</div>
+                    <div id="maximus:5901969420197" class="fav favourite" data-is-favorite="false">
+                        <img src="/public/images/svg/star.svg" title="Agregar a favoritos" alt="Agregar a favoritos">
+                    </div>
+                </div>
+                <a href="/product/maximus:5901969420197" title="Ver detalles del producto" class="img-container">
+                        <img src="https://www.maximus.com.ar/Temp/App_WebSite/App_PictureFiles/Items/NBU-1442.jpg" loading="lazy" decoding="async" itemprop="image" class="img" alt="MOUSE BUNGEE GENESIS VANAD 200" onerror="this.src='/public/images/common/image-not-available.png'">
+                </a>
+            </div>
+            <div class="info-container">
+                <p class="store">Maximus</p>
+                <!-- Ajustar a  -->
+                <!--a itemprop="url" href="https://www.hardgamers.com.ar/product/maximus:5901969420197"  title="Ver detalles del producto"-->
+                <p class="product-name" itemprop="name">
+                    MOUSE BUNGEE GENESIS VANAD 200
+                </p>
+            </div>
+            <div class="price-container">
+                <p class="previous-price">
+                    $9.450
+                </p>
+                <p itemprop="offers" itemscope="" itemtype="http://schema.org/Offer" class="product-price">
+                    <link itemprop="availability" href="https://schema.org/InStock">
+                    <link itemprop="itemCondition" href="https://schema.org/NewCondition">
+                    <meta itemprop="priceCurrency" content="ARS">
+                    <span itemprop="price" content="6143">
+                        $6.143
+                    </span>
+                </p>
+            </div>
+        </article>
+        :param raw_article:
+        :return:
+        """
         name_el = raw_article.find("p", class_="product-name")
         title = name_el.get_text(strip=True).upper() if name_el else "UNKNOWN PRODUCT"
 
@@ -465,7 +507,9 @@ class HardgamersScraper(Scraper):
 
         img_container = raw_article.find("a", class_="img-container")
         href = img_container.get("href") if img_container else ""
-        product_link = f"https://www.hardgamers.com.ar{href}" if href.startswith("/") else href
+        source_url = f"https://www.hardgamers.com.ar{href}" if href.startswith("/") else href
+        # En Hardgamers solo tengo disponible la url propia, para obtener la del producto tengo que acceder al perfil
+        product_link = source_url
 
         img_el = img_container.find("img", class_="img") if img_container else None
         image_url = img_el.get("src") if img_el else None
@@ -477,6 +521,7 @@ class HardgamersScraper(Scraper):
             previous_price=previous_price,
             discount_percent=discount_percent,
             product_link=product_link,
+            source_url=source_url,
             image_url=image_url,
             source=self.SOURCE_KEY,
         )

@@ -29,6 +29,8 @@ def validate_single_deal(deal: Deal) -> Deal:
                 market_discount = ((min_comp_price - deal.current_price) / min_comp_price) * 100.0
                 deal.market_discount_percent = round(market_discount, 1)
                 deal.is_truly_cheaper = deal.current_price < min_comp_price
+                if deal.is_truly_cheaper:
+                    logger.info(f"Deal {deal.title} is truly cheaper than market price")
             else:
                 deal.market_discount_percent = 0.0
                 deal.is_truly_cheaper = False

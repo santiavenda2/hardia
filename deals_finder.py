@@ -211,7 +211,8 @@ def print_accepted_deal(deal: Deal, index: int, output_file):
 
     output_file.write(f"\n{index}. [{deal.store}] {deal.title}\n")
     output_file.write(f"   Precio oferta: ${deal.current_price:,.2f}{prev_str}{discount_str}\n")
-    output_file.write(f"   Link oferta: {deal.product_link}\n")
+    output_file.write(f"   Link oferta: {deal.source_url}\n")
+    output_file.write(f"   Link vendedor: {deal.product_link}\n")
 
     # Competitor validation display
     if deal.competitor_search_url:
