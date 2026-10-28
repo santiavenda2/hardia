@@ -76,7 +76,7 @@ def main():
         raise ValueError(f"Invalid scraper name: {args.scraper}")
 
     product_identifiers_and_target_price = [
-        ProductWithTargetPrice(keywords=["274QPF"], target_price=510_000),
+        ProductWithTargetPrice(keywords=["274QPF"], target_price=490_000),
         ProductWithTargetPrice(keywords=["27GS85Q"], target_price=630_000),
         ProductWithTargetPrice(keywords=["32GS85Q"], target_price=700_000),
         ProductWithTargetPrice(keywords=["LOGITECH", "MX KEYS S"], target_price=150_000, exact=True),

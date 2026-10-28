@@ -152,6 +152,7 @@ class BestgamingScraper(Scraper):
             source_url=source_url,
             image_url="",
             source=self.SOURCE_KEY,
+            is_outlet=raw_article["isOutlet"],
         )
         return article
 
@@ -227,6 +228,7 @@ class BestgamingScraper(Scraper):
                     product_link=article.product_link,
                     image_url=article.image_url,
                     source=self.SOURCE_KEY,
+                    is_outlet=article.is_outlet,
                 )
                 deals.append(deal)
             except Exception:

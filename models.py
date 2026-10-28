@@ -23,6 +23,7 @@ class Article:
     source_url: str
     image_url: Optional[str]
     source: str
+    is_outlet: Optional[bool] = False
 
 
 @dataclass
