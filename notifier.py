@@ -71,7 +71,7 @@ def generate_html_email(source: str, deals: List[Deal], rejected_deals: Optional
             {image_html}
             <div class="deal-content">
                 <p class="store-name">{deal.store}</p>
-                <h3 class="deal-title"><a href="{deal.source_url}" target="_blank">{deal.title}{"(OUTLET)" if deal.i️s_outlet else ""}</a></h3>
+                <h3 class="deal-title"><a href="{deal.source_url}" target="_blank">{deal.title}{"(OUTLET)" if deal.is_outlet else ""}</a></h3>
                 <div class="price-container">
                     <span class="current-price">${deal.current_price:,.2f}</span>
                     {prev_price_html}
