@@ -310,8 +310,9 @@ class HardgamersScraper(Scraper):
             deal_tokens_set = set(product_model_tokens)
             current_competitors = self.find_competitors_on_similar_articles(articles, deal, deal_tokens_set)
             if current_competitors:
-                logger.debug("Competitors found")
+                logger.info(f"Found {len(current_competitors)} competitors. Search keywords: {deal.search_keywords}")
                 competitors.extend(current_competitors)
+                break
             else:
                 product_model_tokens = product_model_tokens[:-1]
 
@@ -584,21 +585,73 @@ def parse_discount(discount_str: Optional[str]) -> Optional[int]:
         return None
 
 
+KNOWN_PRODUCT_TYPES = {
+    "ADAPTADOR",
+    "CABLE",
+    "COMBO TECLADO Y MOUSE",
+    "DISCO SOLIDO",
+    "DISCO SSD",
+    "DISCO SSD M.2",
+    "DISCO SOLIDO",
+    "DISCO SOLIDO NVME",
+    "FUENTE",
+    "GABINETE",
+    "HD SSD",
+    "IMPRESORA",
+    "IMPRESORA LASER",
+    "JOYSTICK",
+    "JOYSTICK GAMEPAD",
+    "JOYSTICK INALÁMBRICO",
+    "MEMORIA",
+    "MEMORIA SODIMM",
+    "MOTHERBOARD",
+    "MOUSE",
+    "MOUSE WIRELESS",
+    "MOUSEPAD",
+    "NOTEBOOK",
+    "PARLANTE",
+    "PC GAMER",
+    "PC WORKSTATION",
+    "PLACA DE VIDEO",
+    "PROCESADOR",
+    "TECLADO",
+    "WATERCOOLER",
+}
+
+def extract_product_type_using_known_types(article_title: str) -> tuple[Optional[str], str]:
+    product_type = None
+    article_type_upper = article_title.upper()
+    for keyword in KNOWN_PRODUCT_TYPES:
+        if article_type_upper.startswith(keyword):
+            if product_type is None:
+                product_type = keyword
+            else:
+                if len(keyword) > len(product_type):
+                    product_type = keyword
+    if product_type:
+        article_model = article_type_upper.replace(product_type, "", count=1)
+        return product_type, article_model
+    return None, article_title
+
+
 def extract_product_type_and_model(deal_title: str) -> tuple[str, list[str]]:
     """
     Extract product type and model from the deal title.
     En general en los productos de hardgamers la primera palabra del titulo es el tipo de producto (mouse, teclado, etc)
-    TODO: agregar un listado de tipos conocidos (incluyendo tipos de mas de una palabra, ejemplo, silla ergonomica) y
-    extraer estos tipos del titulo
     :param deal_title: titulo del deal
     :return: tipo de producto, listado de strings del modelo
     """
-    deal_title = deal_title.upper()
-    tokens = [w for w in deal_title.split(" ") if len(w) > 1 and re.match(r"^[A-Za-z0-9.\-]+$", w)]
-    # tokens = [w for w in re.findall(r'[A-Za-z0-9]+', deal_title) if len(w) > 1 or w.isdigit()]
-    product_type = tokens[0]
-    product_model = tokens[1:]
-    return product_type, product_model
+    product_type, article_model = extract_product_type_using_known_types(deal_title)
+    if product_type:
+        product_model = [w for w in article_model.split(" ") if len(w) > 1 and re.match(r"^[A-Za-z0-9.\-]+$", w)]
+        return product_type, product_model
+    else:
+        deal_title = deal_title.upper()
+        tokens = [w for w in deal_title.split(" ") if len(w) > 1 and re.match(r"^[A-Za-z0-9.\-]+$", w)]
+        # tokens = [w for w in re.findall(r'[A-Za-z0-9]+', deal_title) if len(w) > 1 or w.isdigit()]
+        product_type = tokens[0]
+        product_model = tokens[1:]
+        return product_type, product_model
 
 
 def main():
