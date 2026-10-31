@@ -47,7 +47,7 @@ def validate_single_deal(deal: Deal) -> Deal:
     # 2. Fetch 30-day Price History
     try:
         time.sleep(0.2)
-        history = hardgamers_parser.fetch_price_history(deal.product_link)
+        history = hardgamers_parser.fetch_price_history(deal.source_url)
         deal.history = history
     except Exception as e:
         logger.warning(f"History fetch failed for '{deal.title}': {e}")

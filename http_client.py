@@ -92,6 +92,7 @@ def safe_get(
     for attempt in range(max_retries + 1):
         try:
             response = shared_session.get(url, params=params, timeout=timeout)
+            logger.info(f"Request to {response.url} [{response.status_code}](attempt {attempt}/{max_retries}).")
 
             # Save rate limit reset if provided in headers
             reset_header = response.headers.get("X-Ratelimit-Reset")
